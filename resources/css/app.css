@@ -1,0 +1,92 @@
+body {
+    padding: 0;
+    margin: 0;
+}
+
+.container {
+    width: 1200px;
+    margin: 0 auto;
+}
+
+.button {
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    cursor: pointer;
+    transition: .2s ease background-color;
+}
+
+.button_white {
+    background-color: #f2f2f2;
+}
+
+.button_grey {
+    background-color: #6d6d6d;  
+}
+
+.button_grey:hover {
+    background-color: #363636;  
+}
+
+.button_red {
+    background-color: rgb(236, 50, 50);
+}
+  
+.button_red:hover {
+    background-color: darkred;
+}
+
+.button_blue {
+    background-color: rgb(50, 50, 236);
+}
+  
+.button_blue:hover {
+    background-color: darkblue;
+}
+
+.button_active {
+    background-color: #42b983;
+}
+  
+.button_grey:disabled {
+    background-color: #bebebe;
+    cursor: not-allowed;
+}
+
+.mx-datepicker {
+    width: 100% !important;
+}
+
+.error {
+    border: 1px solid red;
+  }
+  
+.error-message {
+    color: red;
+    font-size: 0.8rem;
+    margin-top: 5px;
+}
+
+.input-wrapper {
+    width: 100%;
+}
+
+.create-form {
+    display: flex;
+    justify-content: center;
+    width: 300px;
+    margin: 30px auto 0 auto;
+}
+
+@media (max-width: 1200px) {
+    .container {
+        width: 100%;
+        padding: 10px;
+    }
+}
+
+@media (max-width: 500px) {
+    .create-form {
+        width: 100%;
+    }
+}

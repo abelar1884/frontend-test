@@ -1,130 +1,148 @@
 <template>
-    <div>
-        <comments
+    <div class="container">
+        <u-table
+            :headers="headers"
             :rows="paginateComments"
-            :is-loading="$store.getters['isLoading']"
-            :sort-by.sync="sortParams.sortBy"
-            :sort-desc.sync="sortParams.sortDesc"
+            :is-loading="isLoading"
+            :sort-by="sortParams.sortBy"
+            :sort-desc="sortParams.sortDesc"
+            @sort="onSort"
         >
-            <template v-slot="{row}">
+            <template #header-actions="{header}">
+               Управление
+            </template>
+            <template #cell-date="{row}">
+                {{ parseDate(row.date) }}
+            </template>
+            <template #cell-actions="{row}">
                 <div class="actions">
-                    <button @click="removeComment(row.id)">Удалить</button>
-                    <button @click="commentForEdit = row">Редактировать</button>
+                    <button @click="onDelete(row)" class="button button_red">Удалить</button>
+                    <button @click="onEdit(row)" class="button button_blue">Редактировать</button>
                 </div>
             </template>
             <template #pagination>
-                <pagination
-                    v-show="!$store.getters['isLoading']"
-                    v-model="currentPage"
-                    :pages="pages"
+                <u-pagination
+                    v-if="comments.length > paginationParams.perPage && !isLoading"
+                    :current-page="paginationParams.currentPage"
+                    :items-per-page="paginationParams.perPage"
+                    :total-items="comments.length"
+                    @page-changed="paginationParams = $event"
                 />
             </template>
-        </comments>
-        <div class="forms">
-            <div>
-                <h4>Создать новый коментарий</h4>
-                <comment-from @submit="onCreateComment" />
-            </div>
-            <div  v-if="commentForEdit">
-                <h4>Редактировать новый коментарий</h4>
-                <comment-from
-                    :comment="commentForEdit"
-                    @submit="onEditComment"
-                />
-            </div>
-        </div>
+        </u-table>
+        <delete-comment-modal v-model="isShowDeleteModal" :comment="selectedComment" />
+        <edit-comment-modal v-model="isShowEditModal" :comment="selectedComment" />
+        <add-comment />
     </div>
 </template>
 <script>
-import { getComments, deleteComment, createComment, editComment } from '../libs/queries'
-import comments from "../components/comments";
-import commentFrom from "../components/commentFrom";
-import pagination from "../components/pagination";
-import { mapMutations } from 'vuex'
+import { mapActions, mapMutations } from 'vuex'
+import UTable from '../components/ui/UTable.vue';
+import UModal from '../components/ui/UModal.vue';
+import UPagination from '../components/ui/UPagination.vue';
+import DeleteCommentModal from '../components/DeleteCommentModal.vue';
+import EditCommentModal from '../components/EditCommentModal.vue';
+import AddComment from '../components/AddComment.vue';
 
 export default {
-    components: {comments, commentFrom, pagination},
+    components: {
+        DeleteCommentModal,
+        EditCommentModal,
+        AddComment,
+        UModal, 
+        UPagination, 
+        UTable
+    },
     data() {
         return {
-            comments: [],
+            selectedComment: null,
             sortParams: {
                 sortBy: 'id',
-                sortDesc: false
+                sortDesc: true
             },
-            currentPage: 1,
-            perPage: 3,
-            commentForEdit: null
+            commentForEdit: null,
+            isShowDeleteModal: false,
+            isShowEditModal: false,
+            headers: [
+                {
+                    label: 'id',
+                    sorted: true
+                },
+                {
+                    label: 'name',
+                    text: 'Имя пользователя'
+                },
+                {
+                    label: 'text',
+                    text: 'Текст'
+                },
+                {
+                    label: 'date',
+                    text: 'Дата',
+                    sorted: true
+                },
+                {
+                    label: 'actions',
+                    text: '',
+                }
+            ]
         }
     },
     mounted() {
         this.fetchComments()
     },
     computed: {
-        paginateComments () {
-            return this.paginate(this.comments, this.perPage, this.currentPage)
-        },
-        pages () {
-            return Math.ceil(this.comments.length / this.perPage)
-        }
-    },
-    watch: {
-        sortParams: {
-            handler: function() {
-                this.sortComments()
+        paginationParams: {
+            get () {
+                return this.$store.getters['paginationParams']
             },
-            deep: true
+            set (value) {
+                this.setCurrentPage(value)
+            }
+        },
+        comments() {
+            return this.$store.getters['comments']
+        },
+        paginateComments() {
+            return this.comments.sort(this.sortableMethod).slice((this.paginationParams.currentPage - 1) * this.paginationParams.perPage, this.paginationParams.currentPage * this.paginationParams.perPage)
+        },
+        isLoading() {
+            return this.$store.getters['isLoading']
         }
     },
     methods: {
-        fetchComments() {
-            this.setLoading(true)
-            getComments().then(({ data })=> {
-                this.comments = data
-            }).finally(() => this.setLoading(false))
+        sortableMethod(a, b) {
+            if (this.sortParams.sortBy === 'id') {
+                return this.sortParams.sortDesc ? b.id - a.id : a.id - b.id
+            }
+            if (this.sortParams.sortBy === 'date') {
+                const aDate = new Date(a.date)
+                const bDate = new Date(b.date)
+                return this.sortParams.sortDesc ? bDate - aDate : aDate - bDate
+            }
+            return this.sortParams.sortDesc ? b.id - a.id : a.id - b.id
         },
-        removeComment(id) {
-            this.setLoading(true)
-            this.commentForEdit = null
-            deleteComment(id).then(() => {
-                this.fetchComments()
-            })
+        onSort({sortBy, sortDesc}) {
+            this.sortParams.sortBy = sortBy
+            this.sortParams.sortDesc = sortDesc
         },
-        onCreateComment(form) {
-            this.setLoading(true)
-            createComment(form).then(() => this.fetchComments())
+        parseDate(date) {
+            return new Date(date).toLocaleDateString()
         },
-        onEditComment (form) {
-            this.setLoading(true)
-            this.commentForEdit = null
-            editComment(form.id, form).then(() => this.fetchComments())
+        onDelete(comment) {
+            this.selectedComment = comment
+            this.isShowDeleteModal = true
         },
-        sortComments () {
-            this.comments = [...this.comments]
-                .sort((a,b) => {
-                    if (a[this.sortParams.sortBy] >= b[this.sortParams.sortBy]) {
-                        return this.sortParams.sortDesc ? 1 : -1
-                    }
-                    return !this.sortParams.sortDesc ? 1 : -1
-                })
+        onEdit(comment) {
+            this.selectedComment = comment
+            this.isShowEditModal = true
         },
-        paginate (array, perPage, page) {
-            return array.slice((page - 1) * perPage, page * perPage)
-        },
+        ...mapActions([
+            'fetchComments',
+        ]),
         ...mapMutations([
-            'setLoading'
+            'setCurrentPage'
         ])
     }
 };
 </script>
-
-<style>
-.forms {
-    display: flex;
-    justify-content: space-between;
-}
-@media (max-width: 700px) {
-    .forms {
-        flex-direction: column;
-    }
-}
-</style>
